@@ -2,6 +2,7 @@ package gcm
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,9 +10,13 @@ import (
 	"strings"
 )
 
-type Proxy struct {
+type Config struct {
 	Port   int
 	APIKey string
+}
+
+type Proxy struct {
+	cfg *Config
 }
 
 type Payload struct {
@@ -26,19 +31,25 @@ type Data struct {
 var Endpoint string = "https://android.googleapis.com/gcm/send"
 var proxy *Proxy
 
-func NewProxy(port int, api_key string) *Proxy {
-	proxy = &Proxy{
-		Port:   port,
-		APIKey: api_key,
+func NewProxy(config *Config) (*Proxy, error) {
+	if config.Port == 0 {
+		return nil, errors.New("Please Set Port")
+	}
+	if config.APIKey == "" {
+		return nil, errors.New("Please Set APIKey")
 	}
 
-	return proxy
+	proxy = &Proxy{
+		cfg: config,
+	}
+
+	return proxy, nil
 }
 
-func (p *Proxy) Run() error {
-	fmt.Printf("gcm-proxy start 0.0.0.0:%d \n", p.Port)
+func (p *Proxy) Run() {
+	fmt.Printf("gcm-proxy start 0.0.0.0:%d \n", p.cfg.Port)
 	http.HandleFunc("/", Reciver)
-	return http.ListenAndServe(":"+strconv.Itoa(p.Port), nil)
+	http.ListenAndServe(":"+strconv.Itoa(p.cfg.Port), nil)
 }
 
 func Reciver(w http.ResponseWriter, req *http.Request) {
@@ -123,7 +134,7 @@ func getAPIKey() string {
 	if proxy == nil {
 		apiKey = "test api key"
 	} else {
-		apiKey = proxy.APIKey
+		apiKey = proxy.cfg.APIKey
 	}
 
 	return apiKey
