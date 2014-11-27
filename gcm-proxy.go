@@ -132,7 +132,7 @@ func send(payload *Payload) {
 
 		defer resp.Body.Close()
 		respBody, err := ioutil.ReadAll(resp.Body)
-		// if happend error post retry
+
 		if !strings.Contains(resp.Status, "200") {
 			glog.Errorf("Post GCM Error: %s", string(respBody))
 		} else {
