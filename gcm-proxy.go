@@ -3,14 +3,12 @@ package gcm
 import (
 	"encoding/json"
 	"errors"
-	"flag"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 
-	"github.com/golang/glog"
+	"log"
 )
 
 type Config struct {
@@ -50,14 +48,12 @@ func NewProxy(config *Config) (*Proxy, error) {
 }
 
 func (p *Proxy) Run() {
-	fmt.Printf("gcm-proxy start 0.0.0.0:%d \n", p.cfg.Port)
+	log.Printf("gcm-proxy start 0.0.0.0:%d \n", p.cfg.Port)
 	http.HandleFunc("/", Reciver)
 	http.ListenAndServe(":"+strconv.Itoa(p.cfg.Port), nil)
 }
 
 func Reciver(w http.ResponseWriter, req *http.Request) {
-	flag.Parse()
-
 	if req.Method == "GET" {
 		http.Error(w, "Method Not Allowd", http.StatusMethodNotAllowed)
 		return
@@ -77,13 +73,13 @@ func Reciver(w http.ResponseWriter, req *http.Request) {
 	// TODO
 	// when header json
 	if req.Form.Get("token") == "" {
-		glog.Error("Parameter [token] is empty")
+		log.Print("Parameter [token] is empty")
 		http.Error(w, "Lack Parameter", http.StatusBadRequest)
 		return
 	}
 
 	if req.Form.Get("alert") == "" {
-		glog.Error("Parameter [alert] is empty")
+		log.Print("Parameter [alert] is empty")
 		http.Error(w, "Lack Parameter", http.StatusBadRequest)
 		return
 	}
@@ -103,18 +99,16 @@ func Reciver(w http.ResponseWriter, req *http.Request) {
 }
 
 func send(payload *Payload) {
-	flag.Parse()
-
 	p, err := json.Marshal(payload)
 	body := strings.NewReader(string(p))
 	if err != nil {
-		glog.Errorf("Create New Reader Error: %s", err.Error())
+		log.Printf("Create New Reader Error: %s", err.Error())
 	}
 
 	go func() {
 		req, err := http.NewRequest("POST", Endpoint, body)
 		if err != nil {
-			glog.Errorf("Create NewRequest Error: %s", err.Error())
+			log.Printf("Create NewRequest Error: %s", err.Error())
 		}
 
 		apiKey := getAPIKey()
@@ -127,16 +121,16 @@ func send(payload *Payload) {
 		resp, err := client.Do(req)
 
 		if err != nil {
-			glog.Errorf("Post GCM Error: %s", err.Error())
+			log.Printf("Post GCM Error: %s", err.Error())
 		}
 
 		defer resp.Body.Close()
 		respBody, err := ioutil.ReadAll(resp.Body)
 
 		if !strings.Contains(resp.Status, "200") {
-			glog.Errorf("Post GCM Error: %s", string(respBody))
+			log.Printf("Post Error: %s", string(respBody))
 		} else {
-			glog.Infof("Post GCM Success: %s", string(respBody))
+			log.Printf("Result: %s", string(respBody))
 		}
 	}()
 }
