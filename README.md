@@ -10,19 +10,28 @@ gcm-proxy is GCM (Google Cloud Messaging) proxy written by golang.
 
 ```go
 # gcm-proxy-server.go
-impodrt(
-    gcm_proxy "github.com/Konboi/gcm-proxy"
-);
+package main
 
+import (
+	"log"
+
+	gcm "github.com/Konboi/gcm-proxy"
+)
 
 func main() {
-    server := gcm_proxy.NewServer{
-        Port: 22222,
-        APIKey: 'abcdefg12345'
-    };
+	config := &gcm.Config{
+		Port:   6969,
+		APIKey: "testapikey",
+	}
 
-    server.Run();
+	gcm_proxy, err := gcm.NewProxy(config)
+	if err != nil {
+		log.Fatalf("Initialize Error: %s", err.Error())
+	}
+
+	gcm_proxy.Run()
 }
+
 ```
 
 
