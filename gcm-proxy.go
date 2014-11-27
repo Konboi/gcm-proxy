@@ -3,11 +3,14 @@ package gcm
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
-	"log"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/golang/glog"
 )
 
 type Config struct {
@@ -53,6 +56,8 @@ func (p *Proxy) Run() {
 }
 
 func Reciver(w http.ResponseWriter, req *http.Request) {
+	flag.Parse()
+
 	if req.Method == "GET" {
 		http.Error(w, "Method Not Allowd", http.StatusMethodNotAllowed)
 		return
@@ -72,13 +77,13 @@ func Reciver(w http.ResponseWriter, req *http.Request) {
 	// TODO
 	// when header json
 	if req.Form.Get("token") == "" {
-		log.Println("Parameter [token] is empty")
+		glog.Error("Parameter [token] is empty")
 		http.Error(w, "Lack Parameter", http.StatusBadRequest)
 		return
 	}
 
 	if req.Form.Get("alert") == "" {
-		log.Println("Parameter [alert] is empty")
+		glog.Error("Parameter [alert] is empty")
 		http.Error(w, "Lack Parameter", http.StatusBadRequest)
 		return
 	}
@@ -86,45 +91,54 @@ func Reciver(w http.ResponseWriter, req *http.Request) {
 	tokens := strings.Split(req.Form.Get("token"), ",")
 	alert := req.Form.Get("alert")
 
-	// TODO
-	// use gorutine
 	data := &Data{Message: alert}
 	payload := &Payload{
 		RegistrationIds: tokens,
 		Data:            data,
 	}
-	Send(payload)
+
+	send(payload)
 
 	w.WriteHeader(http.StatusOK)
 }
 
-func Send(payload *Payload) {
+func send(payload *Payload) {
+	flag.Parse()
+
 	p, err := json.Marshal(payload)
 	body := strings.NewReader(string(p))
-
 	if err != nil {
-		log.Fatal(err)
-	}
-	req, err := http.NewRequest("POST", Endpoint, body)
-	if err != nil {
-		log.Fatal(err)
+		glog.Errorf("Create New Reader Error: %s", err.Error())
 	}
 
-	apiKey := getAPIKey()
+	go func() {
+		req, err := http.NewRequest("POST", Endpoint, body)
+		if err != nil {
+			glog.Errorf("Create NewRequest Error: %s", err.Error())
+		}
 
-	req.Header.Set("Authorization", "key="+apiKey)
-	req.Header.Set("Content-Type", "application/json")
+		apiKey := getAPIKey()
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+		req.Header.Set("Authorization", "key="+apiKey)
+		req.Header.Set("Content-Type", "application/json")
 
-	if err != nil {
-		log.Printf("Post GCM Error: %s", err.Error())
-	} else if !strings.Contains(resp.Status, "200") {
-		log.Printf("Post GCM Error: %s", resp.Status)
-	} else {
-		log.Print("Post GCM Success")
-	}
+		client := &http.Client{}
+
+		resp, err := client.Do(req)
+
+		if err != nil {
+			glog.Errorf("Post GCM Error: %s", err.Error())
+		}
+
+		defer resp.Body.Close()
+		respBody, err := ioutil.ReadAll(resp.Body)
+		// if happend error post retry
+		if !strings.Contains(resp.Status, "200") {
+			glog.Errorf("Post GCM Error: %s", string(respBody))
+		} else {
+			glog.Infof("Post GCM Success: %s", string(respBody))
+		}
+	}()
 }
 
 // for testing method
