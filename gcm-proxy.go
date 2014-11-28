@@ -59,18 +59,18 @@ func Reciver(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.Body == nil {
+		log.Print("Request Body is nil")
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
-
 	defer req.Body.Close()
+
 	err := req.ParseForm()
 	if err != nil {
+		log.Print("Parameter Form Error: %s", err.Error())
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 	}
 
-	// TODO
-	// when header json
 	if req.Form.Get("token") == "" {
 		log.Print("Parameter [token] is empty")
 		http.Error(w, "Lack Parameter", http.StatusBadRequest)
