@@ -4,11 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
-
-	"log"
 )
 
 type Config struct {
@@ -78,16 +77,18 @@ func Reciver(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if req.Form.Get("alert") == "" {
-		log.Print("Parameter [alert] is empty")
-		http.Error(w, "Lack Parameter", http.StatusBadRequest)
-		return
+	var data *Data
+
+	if req.Form.Get("payload") != "" {
+		p := req.Form.Get("payload")
+		data = &Data{p}
+	} else {
+		alert := req.Form.Get("alert")
+		data = &Data{Message: alert}
 	}
 
 	tokens := strings.Split(req.Form.Get("token"), ",")
-	alert := req.Form.Get("alert")
 
-	data := &Data{Message: alert}
 	payload := &Payload{
 		RegistrationIds: tokens,
 		Data:            data,
@@ -100,6 +101,10 @@ func Reciver(w http.ResponseWriter, req *http.Request) {
 
 func send(payload *Payload) {
 	p, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("Payload Marshal Error: %s", err.Error())
+	}
+
 	body := strings.NewReader(string(p))
 	if err != nil {
 		log.Printf("Create New Reader Error: %s", err.Error())
@@ -111,9 +116,7 @@ func send(payload *Payload) {
 			log.Printf("Create NewRequest Error: %s", err.Error())
 		}
 
-		apiKey := getAPIKey()
-
-		req.Header.Set("Authorization", "key="+apiKey)
+		req.Header.Set("Authorization", "key="+getAPIKey())
 		req.Header.Set("Content-Type", "application/json")
 
 		client := &http.Client{}
